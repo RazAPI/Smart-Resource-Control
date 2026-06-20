@@ -5,7 +5,7 @@
 
     TODO:
     {
-        "prevent LogService detection by outputting in a protected GUI"
+        "prevent LogService detection by outputting in a protected GUI": DONE
     }
 ]]
 
