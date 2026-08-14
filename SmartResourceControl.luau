@@ -6,6 +6,7 @@
     TODO:
     {
         "prevent LogService detection by outputting in a protected GUI": DONE
+        "optimize variable localization by NOT putting them in tables?"
     }
 ]]
 
@@ -15,7 +16,9 @@ local task_spawn = task.spawn
 local number_range_new = NumberRange.new
 local table_insert = table.insert
 local table_remove = table.remove
+local table_clear = table_clear
 local os_clock = os.clock
+local math_floor = math.floor
 --// Loading time
 local ResourceControlLoadingTime = os_clock()
 
@@ -39,17 +42,15 @@ local RazAPI = {
 
         return Types[type(Object)].value()
     end,
-
-    DataModel = game
 }
 
 local user_settings = UserSettings -- (i know, this does nothing. im just using it for the casing)
 --// Services
-local Stats = RazAPI.DataModel:GetService("Stats")
-local Workspace = RazAPI.DataModel:GetService("Workspace")
-local UserInputService = RazAPI.DataModel:GetService("UserInputService")
+local Stats = game:GetService("Stats")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 --// Long
-local CoreGui = gethui and gethui() or cloneref and cloneref(RazAPI.DataModel:GetService("CoreGui")) or RazAPI.DataModel:GetService("CoreGui")
+local CoreGui = gethui and gethui() or cloneref and cloneref(game:GetService("CoreGui")) or game:GetService("CoreGui")
 --// Engine Dependency Check
 local Success = pcall(function()
     user_settings().GameSettings.FramerateCap = user_settings().GameSettings.FramerateCap
@@ -85,10 +86,12 @@ end
 
 local ConsoleGui = NewElement("ScreenGui", {
     Name = "SmartResourceControlConsole",
+    Parent = CoreGui,
     ResetOnSpawn = false
 })
 
 local MainFrame = NewElement("Frame", {
+    Parent = ConsoleGui,
     Size = udim2_new(0, 700, 0, 300),
     Position = udim2_new(0.5, -350, 0.5, -150),
     BackgroundColor3 = color3_fromrgb(12, 12, 16),
@@ -98,13 +101,15 @@ local MainFrame = NewElement("Frame", {
 })
 
 local MainCorner = NewElement("UICorner", {
-    CornerRadius = udim_new(0, 13)
+    CornerRadius = udim_new(0, 13),
+    Parent = MainFrame
 })
 
 local MainStroke = NewElement("UIStroke", {
     Color = color3_fromrgb(55, 55, 65),
     Thickness = 1,
-    Transparency = 0.45
+    Transparency = 0.45,
+    Parent = MainFrame
 })
 
 local TopBar = NewElement("Frame", {
@@ -112,11 +117,13 @@ local TopBar = NewElement("Frame", {
     BackgroundColor3 = color3_fromrgb(20, 20, 25),
     BackgroundTransparency = 0.1,
     BorderSizePixel = 0,
-    Active = false
+    Active = false,
+    Parent = MainFrame
 })
 
 local TopCorner = NewElement("UICorner", {
-    CornerRadius = udim_new(0, 13)
+    CornerRadius = udim_new(0, 13),
+    Parent = TopBar
 })
 
 local TopFill = NewElement("Frame", {
@@ -124,18 +131,20 @@ local TopFill = NewElement("Frame", {
     Position = udim2_new(0, 0, 1, -13),
     BackgroundColor3 = color3_fromrgb(20, 20, 25),
     BackgroundTransparency = 0.1,
-    BorderSizePixel = 0
+    BorderSizePixel = 0,
+    Parent = TopBar
 })
 
 local TitleLabel = NewElement("TextLabel", {
     Size = udim2_new(1, -50, 1, 0),
     Position = udim2_new(0, 12, 0, 0),
     BackgroundTransparency = 1,
-    Text = "Smart Resource Control",
+    Text = "Smart Resource Control Manager",
     TextColor3 = color3_fromrgb(245, 245, 245),
     TextSize = 16,
     TextXAlignment = Enum.TextXAlignment.Left,
-    FontFace = font_new("rbxassetid://16658246179", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+    FontFace = font_new("rbxassetid://16658246179", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal),
+    Parent = TopBar
 })
 
 local CloseButton = NewElement("TextButton", {
@@ -145,11 +154,13 @@ local CloseButton = NewElement("TextButton", {
     BorderSizePixel = 0,
     Text = "",
     AutoButtonColor = true,
-    Active = false
+    Active = false,
+    Parent = TopBar
 })
 
 local CloseCorner = NewElement("UICorner", {
-    CornerRadius = udim_new(1, 0)
+    CornerRadius = udim_new(1, 0),
+    Parent = CloseButton
 })
 
 local LogContainer = NewElement("ScrollingFrame", {
@@ -158,48 +169,33 @@ local LogContainer = NewElement("ScrollingFrame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 4,
-    CanvasSize = udim2_new()
+    CanvasSize = udim2_new(),
+    Parent = MainFrame
 })
 
 local LogLayout = NewElement("UIListLayout", {
     Padding = udim_new(0, 3),
-    SortOrder = Enum.SortOrder.LayoutOrder
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    Parent = LogContainer
 })
 
 local LogPadding = NewElement("UIPadding", {
     PaddingLeft = udim_new(0, 8),
     PaddingRight = udim_new(0, 8),
     PaddingTop = udim_new(0, 8),
-    PaddingBottom = udim_new(0, 8)
+    PaddingBottom = udim_new(0, 8),
+    Parent = LogContainer
 })
-
-ConsoleGui.Parent = CoreGui
-MainFrame.Parent = ConsoleGui
-MainCorner.Parent = MainFrame
-MainStroke.Parent = MainFrame
-TopBar.Parent = MainFrame
-TopCorner.Parent = TopBar
-TopFill.Parent = TopBar
-TitleLabel.Parent = TopBar
-CloseButton.Parent = TopBar
-CloseCorner.Parent = CloseButton
-LogContainer.Parent = MainFrame
-LogLayout.Parent = LogContainer
-LogPadding.Parent = LogContainer
 
 RazAPI.SignConnection("CloseConsole", CloseButton.MouseButton1Click, function()
     ConsoleGui:Destroy()
 end)
 
---// Money can't buy happiness i think im happy with it
-
 RazAPI.SignConnection("LogLayout", LogLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
     LogContainer.CanvasSize = udim2_new(0, 0, 0, LogLayout.AbsoluteContentSize.Y + 16)
 end)
 
-local Dragging = false
-local DragStart = nil
-local StartPosition = nil
+local Dragging, DragStart, StartPosition = false, nil, nil
 local LogMessages = {}
 
 local PrintConsole = function(LogType, Message)
@@ -210,7 +206,7 @@ local PrintConsole = function(LogType, Message)
     elseif LogType == 2 then
         Text = `<font color="#FFD75E">[ {os.date("%H:%M:%S")} ] [ WARN ]</font> {Message}`
     elseif LogType == 3 then
-        Text = `<font color="#FF6B6B">[ {os.date("%H:%M:%S")} ] [ ERROR ]</font> {Message}`
+        Text = `<font color="#FF6B6B">[ {os.date("%H:%M:%S")} ] [ CRITICAL ]</font> {Message}`
     else
         Text = tostring(Message)
     end
@@ -285,7 +281,7 @@ local MaterialRelatedObjects = { ["Part"] = true, ["UnionOperation"] = true, ["M
 local InstanceCache = { Material = {}, Decal = {}, NumLife = {}, Explosion = {} }
 
 --// Safe static check to avoid :GetDescendants() crashing you on heavy games
-local TotalInitialInstances = #RazAPI.DataModel:GetDescendants()
+local TotalInitialInstances = #game:GetDescendants()
 local BypassMassPurge = TotalInitialInstances > 50000
 
 --// Main Table
@@ -472,12 +468,14 @@ local font_new = Font.new
 
 local ScreenGui = NewElement("ScreenGui", {
     Name = "SmartResourceControlStatistics",
+    Parent = CoreGui,
     ResetOnSpawn = false,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 })
 
 local ExtraFrame = NewElement("Frame", {
     Size = udim2_offset(760, 32),
+    Parent = ScreenGui,
     Position = udim2_new(0, 1150, 0, -48),
     BackgroundColor3 = color3_fromrgb(20, 20, 20),
     BackgroundTransparency = 0.06,
@@ -486,7 +484,8 @@ local ExtraFrame = NewElement("Frame", {
 })
 
 local UICorner = NewElement("UICorner", {
-    CornerRadius = udim_new(0, 6)
+    CornerRadius = udim_new(0, 6),
+    Parent = ExtraFrame
 })
 
 local StatsLabel = NewElement("TextLabel", {
@@ -499,24 +498,20 @@ local StatsLabel = NewElement("TextLabel", {
     TextYAlignment = Enum.TextYAlignment.Center,
     Text = "Loading...",
     Active = true,
-    TextTruncate = Enum.TextTruncate.AtEnd
+    TextTruncate = Enum.TextTruncate.AtEnd,
+    Parent = ExtraFrame
 })
 
 local UIPadding = NewElement("UIPadding", {
     PaddingLeft = udim_new(0, 12),
-    PaddingRight = udim_new(0, 12)
+    PaddingRight = udim_new(0, 12),
+    Parent = StatsLabel
 })
 
 local Dragging = false
 local DragStart = nil
 local StartPosition = nil
 local LastStatsText = ""
-
-ScreenGui.Parent = CoreGui
-ExtraFrame.Parent = ScreenGui
-UICorner.Parent = ExtraFrame
-StatsLabel.Parent = ExtraFrame
-UIPadding.Parent = StatsLabel
 
 RazAPI.SignConnection("StatisticsDragStart", ExtraFrame.InputBegan, function(Input)
     if Input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
@@ -558,7 +553,8 @@ RazAPI.SignConnection("KeybindModule", UserInputService.InputBegan, function(Inp
     end
 end)
 --// Render Track Module
-local StoredGlobalShadows = RazAPI.DataModel.Lighting.GlobalShadows
+--// considering the fact we're caching everything, i do not know if adding a table full of cached objects will result in one more instruction being sent to the luau bytecode interpreter ❌
+local StoredGlobalShadows = game.Lighting.GlobalShadows
 
 local MemoryThresholdMB = 2000
 local MemoryThrottleActive = false
@@ -608,6 +604,7 @@ end
 
 local ThrottledByWindow = false
 
+--// Release to Manufacturing get it get it
 local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", function()
     while task_wait(1) do
         local AwayTime = ResourceControlService.SmartWindowControlService.GetCurrentAwayTime()
@@ -618,6 +615,7 @@ local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", fu
         local AverageFPS = IsFocused and GetAverageFPS(1 / FrameResponseTime) or 60
         local ItemsThrottled = RazAPI.GetLength(InstancePropertyStore)
 
+        --// thanks string interpolation
         local StatsText = `MEM {math.floor(MemoryUsage)}MB | FPS {math.floor(AverageFPS)} | FOCUS {IsFocused} | AWAY {math.floor(AwayTime)}s | MEMTHROTTLE {MemoryThrottleActive} | WINTHROTTLE {ThrottledByWindow} | DEGRADED {ItemsThrottled}`
 
         if StatsText ~= LastStatsText then
@@ -638,16 +636,17 @@ local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", fu
 
             PrintConsole(2, `Limiting resource usage ({math.floor(MemoryUsage)}MB)`)
             StoredQualityLevel = RazAPI.RenderingSettings.QualityLevel
-            StoredGlobalShadows = RazAPI.DataModel.Lighting.GlobalShadows
+            StoredGlobalShadows = game.Lighting.GlobalShadows
 
-            RazAPI.DataModel.Lighting.GlobalShadows = false
+            game.Lighting.GlobalShadows = false
+            --// Scamnapse: apparently, if you set your quality level to 1 it creates more lag than if you set your quality level to 2..
             RazAPI.RenderingSettings.MeshCacheSize = 1
             RazAPI.RenderingSettings.QualityLevel = 2
             RazAPI.GameSettings.FramerateCap = 60
 
-            --// im scared
             pcall(function()
                 settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.DefaultAuto
+                --// the rendering pipeline will force frames to update causing unstable frames if you have a bad low end pc
                 RenderSettings.EagerBulkExecution = false 
             end)
 
@@ -671,7 +670,7 @@ local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", fu
             MemoryThrottleActive = false
 
             RazAPI.RenderingSettings.QualityLevel = StoredQualityLevel or Enum.QualityLevel.Automatic
-            RazAPI.DataModel.Lighting.GlobalShadows = StoredGlobalShadows
+            game.Lighting.GlobalShadows = StoredGlobalShadows
             RazAPI.GameSettings.FramerateCap = StoredFPSCap
 
             Terrain.WaterWaveSize = TerrainValues.WaterWaveSize
@@ -686,7 +685,7 @@ local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", fu
             if not ThrottledByWindow then
                 ThrottledByWindow = true
                 RazAPI.GameSettings.FramerateCap = 60
-                RazAPI.DataModel.Lighting.GlobalShadows = false
+                game.Lighting.GlobalShadows = false
 
                 Terrain.WaterWaveSize = 0
                 Terrain.WaterWaveSpeed = 0
@@ -695,7 +694,7 @@ local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", fu
             end
         elseif IsFocused and ThrottledByWindow then
             ThrottledByWindow = false
-            table.clear(FPSHistory)
+            table_clear(FPSHistory)
             MemoryThrottleActive = false
 
             local TargetFPS = StoredFPSCap
@@ -705,7 +704,7 @@ local RTM = RazAPI.WriteThread("RTMService (Render Track Module Service)[3]", fu
             end
 
             RazAPI.GameSettings.FramerateCap = TargetFPS
-            RazAPI.DataModel.Lighting.GlobalShadows = StoredGlobalShadows
+            game.Lighting.GlobalShadows = StoredGlobalShadows
 
             Terrain.WaterWaveSize = TerrainValues.WaterWaveSize
             Terrain.WaterWaveSpeed = TerrainValues.WaterWaveSpeed
@@ -773,5 +772,5 @@ PrintConsole(1, `Amount of Resource Control Threads -> {RazAPI.GetLength(RazAPI.
 PrintConsole(1, `Amount of Resource Control Connections -> {RazAPI.GetLength(RazAPI.Connections)}`)
 PrintConsole(1, `Render Track Module loaded -> {tostring(RTM):gsub("thread: 0x", "")}`)
 PrintConsole(1, `Instance Track Module loaded -> {tostring(ITM):gsub("thread: 0x", "")}`)
-PrintConsole(1, `Loaded all modules & scheduled tasks in {math.floor((os_clock() - ResourceControlLoadingTime) * 10000) / 10000}ms`)
+PrintConsole(1, `Loaded all modules & scheduled tasks in {math_floor((os_clock() - ResourceControlLoadingTime) * 10000) / 10000}ms`)
 PrintConsole(1, `Game Memory usage: {tostring(ResourceControlService.MemoryHelper.GetMemoryUsageFormatted())}`)
